@@ -1,22 +1,25 @@
 import AppKit
+import Observation
 import DetourCore
 
 /// Installs new releases from GitHub: at most one check a day, and only into a release build
 /// signed with the same Developer ID.
-@MainActor
+@MainActor @Observable
 final class Updates {
-    let canInstall = Updater.canInstallUpdates(into: Bundle.main.bundleURL)
+    @ObservationIgnored let canInstall = Updater.canInstallUpdates(into: Bundle.main.bundleURL)
     var automatic: Bool {
         didSet { UserDefaults.standard.set(automatic, forKey: "autoUpdate"); checkAutomatically() }
     }
     /// What the updater is doing, or nil when it is idle.
     private(set) var status: String?
 
-    private var lastCheck: Date {
-        get { UserDefaults.standard.object(forKey: "lastUpdateCheck") as? Date ?? .distantPast }
-        set { UserDefaults.standard.set(newValue, forKey: "lastUpdateCheck") }
+    /// When a check last succeeded.
+    private(set) var lastCheck: Date = UserDefaults.standard.object(forKey: "lastUpdateCheck") as? Date ?? .distantPast {
+        didSet { UserDefaults.standard.set(lastCheck, forKey: "lastUpdateCheck") }
     }
-    private var timer: DispatchSourceTimer?
+    /// The newest release the last check found.
+    private(set) var latest: Version?
+    @ObservationIgnored private var timer: DispatchSourceTimer?
 
     init() {
         automatic = UserDefaults.standard.object(forKey: "autoUpdate") as? Bool ?? true
@@ -95,6 +98,7 @@ final class Updates {
     private func newerRelease() async throws -> Release? {
         let release = try await Updater.latestRelease()
         lastCheck = Date()
+        latest = release.version
         return release.version > appVersion ? release : nil
     }
 

@@ -4,6 +4,9 @@ import AppKit
 if CommandLine.arguments.contains("--diagnose") {
     Diagnose.run()
 }
+if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), index + 1 < CommandLine.arguments.count {
+    MainActor.assumeIsolated { Snapshot.run(to: URL(fileURLWithPath: CommandLine.arguments[index + 1])) }
+}
 
 let application = NSApplication.shared
 application.setActivationPolicy(.accessory)

@@ -4,6 +4,9 @@ import AppKit
 /// same process a menu bar item twice, so the restarted app would have no icon.
 @MainActor
 enum Relaunch {
+    /// Whether the app is quitting to restart, e.g. after an update.
+    private(set) static var isRelaunching = false
+
     /// Something has to outlive this process and open the new copy once it's gone. Through
     /// LaunchServices, so the new process stands for itself where permissions are concerned.
     /// Exiting with a failure for launchd's KeepAlive to restart (as Baton does) only works if the
@@ -22,6 +25,7 @@ enum Relaunch {
             log.error("Couldn't relaunch: \(error.localizedDescription, privacy: .public)")
             return
         }
+        isRelaunching = true
         terminate()
     }
 
