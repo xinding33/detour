@@ -35,11 +35,17 @@ public enum ProcessRunner {
             result.errorOutput = error.localizedDescription
             return result
         }
-        // Read both pipes while the process runs, so a full pipe can't stall it.
+        // Read both pipes while the process runs, so a full pipe can't stall it. On threads of
+        // their own: blocking reads on GCD's pool can wait behind other blocked work for seconds
+        // (CI's test runner lost the output that way).
         let out = Box(), err = Box()
         let reads = DispatchGroup()
         for (pipe, box) in [(outPipe, out), (errPipe, err)] {
-            DispatchQueue.global().async(group: reads) { box.data = pipe.fileHandleForReading.readDataToEndOfFile() }
+            reads.enter()
+            Thread {
+                box.data = pipe.fileHandleForReading.readDataToEndOfFile()
+                reads.leave()
+            }.start()
         }
         if exited.wait(timeout: .now() + timeout) == .timedOut {
             result.timedOut = true
@@ -52,7 +58,7 @@ public enum ProcessRunner {
         }
         result.exitStatus = process.terminationStatus
         // A child process that kept the pipes open would block the reads forever.
-        guard reads.wait(timeout: .now() + 2) == .success else { return result }
+        guard reads.wait(timeout: .now() + 5) == .success else { return result }
         result.output = out.data
         result.errorOutput = String(decoding: err.data, as: UTF8.self)
         return result
