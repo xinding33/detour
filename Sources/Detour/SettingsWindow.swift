@@ -90,11 +90,14 @@ struct SettingsView: View {
                     Text("Tailscale")
                     Text(tailscaleDescription)
                 }
-                Toggle(isOn: Binding(get: { openAtLogin }, set: setOpenAtLogin)) {
+                // Bound by key path, not a `Binding(get:set:)`: a `(Bool) -> ()` closure there
+                // crashes Swift 6.3's IR generation (CI's Xcode 26.6).
+                Toggle(isOn: $openAtLogin) {
                     Text("Open at Login")
                     if let problem = LoginItem.problem ?? loginError { Text(problem) }
                 }
                 .disabled(LoginItem.problem != nil)
+                .onChange(of: openAtLogin) { _, enabled in setOpenAtLogin(enabled) }
                 if LoginItem.needsApproval {
                     Button("Allow in Login Items Settings…") { NSWorkspace.shared.open(LoginItem.settingsURL) }
                 }
@@ -154,6 +157,7 @@ struct SettingsView: View {
     }
 
     private func setOpenAtLogin(_ enabled: Bool) {
+        guard enabled != LoginItem.isEnabled else { return }
         do {
             try LoginItem.setEnabled(enabled)
             loginError = nil
@@ -277,9 +281,7 @@ struct AddAppsView: View {
             Section(title) {
                 ForEach(shown) { app in
                     let added = existing.contains(app.bundleID)
-                    Toggle(isOn: Binding(
-                        get: { added || checked.contains(app.bundleID) },
-                        set: { on in if on { checked.insert(app.bundleID) } else { checked.remove(app.bundleID) } })) {
+                    Toggle(isOn: added ? .constant(true) : $checked[contains: app.bundleID]) {
                         HStack(spacing: 8) {
                             Image(nsImage: AppInfo.icon(for: app.bundleID))
                                 .resizable()
@@ -333,5 +335,13 @@ struct AddAppsView: View {
         let all = suggested + openNow + chosen
         onAdd(all.filter { checked.contains($0.bundleID) })
         dismiss()
+    }
+}
+
+extension Set {
+    /// Whether `element` is in the set, as something a Toggle can bind to by key path.
+    subscript(contains element: Element) -> Bool {
+        get { contains(element) }
+        set { if newValue { insert(element) } else { remove(element) } }
     }
 }
