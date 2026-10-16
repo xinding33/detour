@@ -1,0 +1,15 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: swift test
+      # Ad hoc, since CI has no signing identity. Catches a broken bundle before a tag does.
+      - run: SIGN_IDENTITY=- bash scripts/build.sh
