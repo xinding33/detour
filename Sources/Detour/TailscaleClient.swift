@@ -67,13 +67,8 @@ final class TailscaleClient: Sendable {
     }
 
     private static func run(_ executable: URL, _ arguments: [String], timeout: TimeInterval) -> ProcessRunner.Result {
-        // The CLI asks before cutting off an SSH session over Tailscale, and would wait for an
-        // answer nobody can give. Detour is a menu bar app, not that session.
-        var environment = ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("SSH_") }
-        // The app's binary is the CLI only when it looks run from a shell (TERM or SHLVL set).
-        // Launched from launchd or Finder, Detour has neither, and the binary would try to start
-        // a second GUI instead, print that it failed and exit 0.
-        environment["TAILSCALE_BE_CLI"] = "1"
-        return ProcessRunner.run(executable, arguments, environment: environment, timeout: timeout)
+        ProcessRunner.run(executable, arguments,
+                          environment: TailscaleApp.cliEnvironment(from: ProcessInfo.processInfo.environment),
+                          timeout: timeout)
     }
 }

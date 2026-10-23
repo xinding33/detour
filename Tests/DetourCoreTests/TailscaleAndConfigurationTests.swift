@@ -24,6 +24,15 @@ import Testing
         #expect(parse("", exit: 2).state == .unreachable("The Tailscale CLI failed (exit status 2)."))
         #expect(parse("nope", exit: 1, error: "first line\nusage").state == .unreachable("first line"))
     }
+
+    /// Launched by launchd, Detour has no TERM or SHLVL, and without TAILSCALE_BE_CLI the app's
+    /// binary started as a GUI instead of the CLI.
+    @Test func cliEnvironmentForcesTheCLIAndDropsSSH() {
+        let launchd = ["HOME": "/Users/me", "PATH": "/usr/bin:/bin", "XPC_SERVICE_NAME": "x",
+                       "SSH_AUTH_SOCK": "/tmp/sock", "TAILSCALE_BE_CLI": "0"]
+        #expect(TailscaleApp.cliEnvironment(from: launchd)
+            == ["HOME": "/Users/me", "PATH": "/usr/bin:/bin", "XPC_SERVICE_NAME": "x", "TAILSCALE_BE_CLI": "1"])
+    }
 }
 
 @Suite struct ConfigurationTests {
