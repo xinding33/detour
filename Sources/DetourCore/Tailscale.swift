@@ -83,4 +83,16 @@ public enum TailscaleApp {
     public static func cli(inApp app: URL) -> URL {
         app.appendingPathComponent("Contents/MacOS/Tailscale")
     }
+
+    /// The environment to run the CLI with, from Detour's own.
+    public static func cliEnvironment(from environment: [String: String]) -> [String: String] {
+        // The CLI asks before cutting off an SSH session over Tailscale, and would wait for an
+        // answer nobody can give. Detour is a menu bar app, not that session.
+        var environment = environment.filter { !$0.key.hasPrefix("SSH_") }
+        // Unless told, the app's binary guesses from the environment whether it was run from a
+        // shell (TERM, SHLVL). Launched by launchd or Finder, Detour looks like it wasn't, and the
+        // binary would try to start a second GUI instead, print that it failed and exit 0.
+        environment["TAILSCALE_BE_CLI"] = "1"
+        return environment
+    }
 }

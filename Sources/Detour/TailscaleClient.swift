@@ -67,10 +67,8 @@ final class TailscaleClient: Sendable {
     }
 
     private static func run(_ executable: URL, _ arguments: [String], timeout: TimeInterval) -> ProcessRunner.Result {
-        // The CLI asks before cutting off an SSH session over Tailscale, and would wait for an
-        // answer nobody can give. Detour is a menu bar app, not that session.
         ProcessRunner.run(executable, arguments,
-                          environment: ProcessInfo.processInfo.environment.filter { !$0.key.hasPrefix("SSH_") },
+                          environment: TailscaleApp.cliEnvironment(from: ProcessInfo.processInfo.environment),
                           timeout: timeout)
     }
 }
